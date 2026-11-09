@@ -51,10 +51,9 @@ def generate_script(theme, tone):
   # 2. 優先順位に従ってモデルを選択
   selected_model = None
   priority_list = [
-      "gemini-2.0-flash",
-      "gemini-1.5-flash",
-      "gemini-1.5-pro",
-      "gemini-pro",
+      "gemini-3.6-flash",
+      "gemini-3.5-flash-lite",
+      "gemini-3.1-pro"
   ]
 
   for pref in priority_list:
