@@ -38,6 +38,31 @@ def get_video_settings():
 def generate_script(theme, tone):
     genai.configure(api_key=GEMINI_API_KEY)
     
+    # 1. APIから利用可能なモデル一覧を取得
+    candidate_models = []
+    try:
+        for m in genai.list_models():
+            if 'generateContent' in m.supported_generation_methods:
+                # SDKの仕様に合わせて 'models/' プレフィックスを除去
+                clean_name = m.name.replace("models/", "")
+                candidate_models.append(clean_name)
+    except Exception as e:
+        print(f"モデル一覧の取得スキップ: {e}")
+    
+    # 2. 安定したモデルを優先順位に従って選択
+    selected_model = "gemini-1.5-flash"
+    priority_list = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro", "gemini-pro"]
+    
+    for pref in priority_list:
+        if pref in candidate_models:
+            selected_model = pref
+            break
+    elif candidate_models:
+        selected_model = candidate_models[0]
+        
+    print(f"使用モデル: {selected_model}")
+    
+    # 3. 台本生成リクエスト
     prompt = f"""
     TikTok用のショート動画台本を作成してください。
     
@@ -51,15 +76,12 @@ def generate_script(theme, tone):
       "keyword": "背景動画を探すための英語の検索キーワード(例: cooking pasta, night city, etc)"
     }}
     """
-    model = genai.GenerativeModel("gemini-1.5-flash-latest")
+    model = genai.GenerativeModel(selected_model)
     response = model.generate_content(prompt)
     
     raw_text = response.text.replace("```json", "").replace("```", "").strip()
     return json.loads(raw_text)
 
-# (以下、generate_audio, download_pixabay_video, create_video, send_to_discord は前回のコードと全く同じなので省略せずにそのまま配置してください)
-
-# 以下は省略せず配置（スペースの都合で要約しています）
 async def generate_audio(text, output_file="audio.mp3"):
     communicate = edge_tts.Communicate(text, "ja-JP-NanamiNeural")
     await communicate.save(output_file)
