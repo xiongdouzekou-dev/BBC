@@ -43,7 +43,7 @@ jobs:
 
     - name: Run Video Generation Script
       env:
-        GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
         CUSTOM_THEME: ${{ github.event.inputs.custom_theme }}
         CUSTOM_TONE: ${{ github.event.inputs.custom_tone }}
