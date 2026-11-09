@@ -51,7 +51,7 @@ def generate_script(theme, tone):
       "keyword": "背景動画を探すための英語の検索キーワード(例: cooking pasta, night city, etc)"
     }}
     """
-    model = genai.GenerativeModel("gemini-1.5-flash")
+    model = genai.GenerativeModel("gemini-1.5-flash-latest")
     response = model.generate_content(prompt)
     
     raw_text = response.text.replace("```json", "").replace("```", "").strip()
