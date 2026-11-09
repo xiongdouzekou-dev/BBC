@@ -89,11 +89,26 @@ def create_video(audio_file, video_file, script_text, output_file="final_video.m
     txt_clip = TextClip(script_text, fontsize=45, color='white', font="Noto-Sans-CJK-JP", stroke_color='black', stroke_width=2, method='caption', size=(bg.w * 0.85, None))
     txt_clip = txt_clip.set_position('center').set_duration(audio.duration)
     video = CompositeVideoClip([bg, txt_clip])
-    video.write_videofile(output_file, fps=24, codec="libx264", audio_codec="aac", bitrate="1000k")
-
+  # フレームレートを落とし、ビットレートを限界まで絞って確実に25MB以下にする
+    video.write_videofile(output_file, 
+                          fps=15,               # 24から15に下げて容量削減
+                          codec="libx264", 
+                          audio_codec="aac", 
+                          bitrate="500k",       # 1000kから500kに半減
+                          audio_bitrate="64k",  # 音質も少し下げる
+                          preset="fast")        # 処理速度を上げてActionsの停止を防ぐ
+# 5. Discordへ送信
 def send_to_discord(video_file):
     with open(video_file, 'rb') as f:
-        requests.post(DISCORD_WEBHOOK, data={'content': '🎬 新しいTikTok動画が自動生成されました！'}, files={'file': (video_file, f, 'video/mp4')})
+        files = {'file': (video_file, f, 'video/mp4')}
+        payload = {'content': '🎬 新しいTikTok動画が自動生成されました！'}
+        
+        # timeout=60 を追加して、通信が遅くても60秒間は送信完了を待つ
+        response = requests.post(DISCORD_WEBHOOK, data=payload, files=files, timeout=60)
+        
+        # ※もし失敗した時、Actionsを止めずに理由だけコッソリ画面に表示する
+        if response.status_code != 200 and response.status_code != 204:
+            print(f"送信失敗の理由: {response.text}")
 
 async def main():
     try:
