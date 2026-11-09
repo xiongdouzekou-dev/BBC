@@ -3,14 +3,17 @@ import json
 import requests
 import asyncio
 import random
-import google.generativeai as genai
+from openai import OpenAI
 import edge_tts
 from moviepy.editor import VideoFileClip, TextClip, CompositeVideoClip, AudioFileClip
 import moviepy.video.fx.all as vfx
 
 # APIキー読み込み
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 PIXABAY_API_KEY = os.environ.get("PIXABAY_API_KEY")
+
+# OpenAIクライアント初期化
+client = OpenAI(api_key=OPENAI_API_KEY)
 
 # 自動実行時のテーマリスト
 THEME_LIST = [
@@ -32,24 +35,6 @@ def get_video_settings():
     return theme, tone
 
 def generate_script(theme, tone):
-    genai.configure(api_key=GEMINI_API_KEY)
-    
-    priority_models = [
-        "gemini-3.8-flash",
-        "gemini-2.0-flash",
-        "gemini-1.5-flash",
-        "gemini-1.5-pro"
-    ]
-    
-    try:
-        for m in genai.list_models():
-            if 'generateContent' in m.supported_generation_methods:
-                clean_name = m.name.replace("models/", "")
-                if clean_name not in priority_models:
-                    priority_models.append(clean_name)
-    except Exception as e:
-        print(f"モデル一覧の取得スキップ: {e}")
-
     prompt = f"""
     TikTok用のショート動画台本を作成してください。
     
@@ -57,30 +42,24 @@ def generate_script(theme, tone):
     【口調・スタイル】: {tone}
     【長さ】: 30秒程度
     
-    必ず以下のJSON形式のみを出力してください。マークダウン等の装飾は不要です。
+    必ず以下のJSON形式のみを出力してください。
     {{
       "text": "読み上げる台本のテキスト。",
       "keyword": "背景動画を探すための英語の検索キーワード(例: cooking pasta, night city, etc)"
     }}
     """
     
-    response = None
-    for model_name in priority_models:
-        try:
-            print(f"モデル試行中: {model_name}")
-            model = genai.GenerativeModel(model_name)
-            res = model.generate_content(prompt)
-            if res and res.text:
-                response = res
-                print(f"✅ 使用モデル決定: {model_name}")
-                break
-        except Exception as e:
-            print(f"⚠️ {model_name} は利用不可のためスキップ: {e}")
-            
-    if not response:
-        raise RuntimeError("利用可能なGeminiモデルが見つかりませんでした。")
-
-    raw_text = response.text.replace("```json", "").replace("```", "").strip()
+    # Omniモデル（gpt-4o-mini）による生成
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[
+            {"role": "system", "content": "You are a helpful assistant that outputs strictly in JSON format."},
+            {"role": "user", "content": prompt}
+        ],
+        response_format={"type": "json_object"}
+    )
+    
+    raw_text = response.choices[0].message.content
     return json.loads(raw_text)
 
 async def generate_audio(text, output_file="audio.mp3"):
@@ -136,7 +115,7 @@ async def main():
     theme, tone = get_video_settings()
     print(f"採用テーマ: {theme} / 口調: {tone}")
     
-    print("1. 台本生成中...")
+    print("1. OpenAI (gpt-4o-mini) で台本生成中...")
     script_data = generate_script(theme, tone)
     
     print("2. 音声生成中...")
