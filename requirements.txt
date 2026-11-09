@@ -1,4 +1,4 @@
-google-generativeai>=0.8.3
+openai
 edge-tts
 moviepy==1.0.3
 requests
