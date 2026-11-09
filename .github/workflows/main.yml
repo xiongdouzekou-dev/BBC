@@ -2,7 +2,7 @@ name: TikTok Video Generator
 
 on:
   schedule:
-    - cron: '0 20 * * *' # 定期実行
+    - cron: '0 20 * * *' # 日本時間の毎日朝5時に実行
   workflow_dispatch:
     inputs:
       custom_theme:
@@ -18,35 +18,39 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
+
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: '3.10'
+
     - name: Install System Dependencies
       run: |
         sudo apt-get update
         sudo apt-get install -y ffmpeg imagemagick fonts-noto-cjk
-        
-        # ImageMagickのpolicy.xmlを検索して、存在すれば権限を修正する
         POLICY_FILE=$(find /etc -name "policy.xml" | grep ImageMagick | head -n 1)
         if [ -n "$POLICY_FILE" ]; then
           echo "Found policy.xml at: $POLICY_FILE"
           sudo sed -i 's/none/read,write/g' "$POLICY_FILE"
           sudo sed -i 's/rights="none" pattern="PDF"/rights="read,write" pattern="PDF"/g' "$POLICY_FILE"
-        else
-          echo "policy.xml not found. Skipping ImageMagick policy update."
         fi
 
     - name: Install Python Packages
-      run: pip install google-generativeai edge-tts moviepy==1.0.3 requests
+      run: pip install -r requirements.txt
+
     - name: Run Video Generation Script
       env:
         GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
-        DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
-        # GitHubの画面で入力された値を変数としてPythonに渡す
         CUSTOM_THEME: ${{ github.event.inputs.custom_theme }}
         CUSTOM_TONE: ${{ github.event.inputs.custom_tone }}
       run: python main.py
+
+    - name: Upload Video Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: tiktok-video
+        path: final_video.mp4
